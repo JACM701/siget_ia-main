@@ -1,0 +1,44 @@
+# DEPRECATED: Usar docker-compose.yml en la raíz del proyecto.
+# Este archivo solo levanta backend + ChromaDB para desarrollo aislado del backend.
+#
+# Desde la raíz del proyecto ejecutar:
+#   docker compose up --build
+
+version: '3.8'
+
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: siget-chromadb-node
+    ports:
+      - '8000:8000'
+    environment:
+      - CHROMA_DB_IMPL=duckdb+parquet
+    volumes:
+      - chromadb_data:/chroma/data
+
+  node-backend:
+    build: .
+    container_name: siget-node-backend
+    ports:
+      - '4000:4000'
+    environment:
+      - SERVER_PORT=4000
+      - OLLAMA_HOST=host.docker.internal
+      - OLLAMA_PORT=11434
+      - OLLAMA_MODEL=qwen2.5:1.5b
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - DATABASE_PATH=/app/data/siget.db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - backend_data:/app/data
+    depends_on:
+      - chromadb
+
+volumes:
+  chromadb_data:
+    driver: local
+  backend_data:
+    driver: local

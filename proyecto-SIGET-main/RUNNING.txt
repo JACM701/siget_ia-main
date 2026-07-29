@@ -1,0 +1,116 @@
+SIGET Peritos — Guía de ejecución (Semana 6)
+============================================
+
+Requisitos previos
+------------------
+- Docker Desktop instalado y en ejecución
+- Node.js 20+ (para scripts de benchmark)
+- Ollama instalado en el HOST (no en Docker):
+    ollama pull qwen2.5:1.5b
+    ollama serve
+- (Opcional) cloudflared o ngrok para exposición pública
+
+================================================================================
+OPCIÓN A — Docker Compose (recomendado para Semana 6)
+================================================================================
+
+1) Levantar todos los servicios (frontend + backend + ChromaDB):
+
+   cd C:\Users\ajsan\OneDrive\Desktop\proyecto
+   docker compose up --build -d
+
+2) Verificar que todo responde:
+
+   http://localhost:3000          → Frontend
+   http://localhost:4000/health   → Backend OK
+   http://localhost:8000          → ChromaDB
+
+3) Ver logs en tiempo real (útil para el video):
+
+   docker compose logs -f backend frontend
+
+4) Detener servicios:
+
+   docker compose down
+
+Persistencia de datos
+---------------------
+- SQLite de observabilidad: volumen Docker "backend_data" → /app/data/siget.db
+- ChromaDB: volumen "chromadb_data"
+- Los datos NO se pierden al reiniciar contenedores (solo se pierden con docker compose down -v)
+
+================================================================================
+OPCIÓN B — Desarrollo local sin Docker
+================================================================================
+
+Terminal 1 — Backend:
+   cd backend-node
+   npm install
+   npm run dev
+
+Terminal 2 — Frontend:
+   cd C:\Users\ajsan\OneDrive\Desktop\proyecto
+   npm install
+   npm run dev
+
+Abrir: http://localhost:3000
+
+================================================================================
+EXPOSICIÓN PÚBLICA (Semana 6 — obligatorio)
+================================================================================
+
+Con Docker corriendo, exponer el frontend (puerto 3000):
+
+Cloudflare Quick Tunnel (sin registro):
+   .\scripts\tunnel-cloudflare.ps1
+
+Ngrok (requiere cuenta y token):
+   .\scripts\tunnel-ngrok.ps1
+
+Probar desde celular con DATOS MÓVILES (4G/5G), NO la misma WiFi.
+
+Si el frontend está en Vercel:
+   .\scripts\tunnel-ngrok.ps1 -Port 4000
+   Configurar en Vercel: NEXT_PUBLIC_BACKEND_URL=https://TU-TUNEL.ngrok-free.app
+   Configurar en backend: CORS_ORIGINS=https://TU-APP.vercel.app
+
+================================================================================
+BENCHMARK Y EVIDENCIAS (para el PDF)
+================================================================================
+
+Medir latencia local:
+   node scripts/benchmark-latency.js --url http://localhost:3000/api-backend --runs 5
+
+Medir latencia por túnel (reemplaza la URL):
+   node scripts/benchmark-latency.js --url https://TU-TUNEL.trycloudflare.com/api-backend --runs 5
+
+Ver métricas de observabilidad (TTFT, latencia, IP del cliente):
+   node scripts/query-observability.js
+
+Documento técnico Semana 6:
+   docs/entregable.semana.06.md  → completar y exportar a entregable.semana.06.pdf
+
+================================================================================
+VARIABLES DE ENTORNO
+================================================================================
+
+Backend (.env en backend-node/ o en docker-compose):
+   SERVER_PORT=4000
+   OLLAMA_HOST=host.docker.internal   (Docker) / localhost (local)
+   DATABASE_PATH=/app/data/siget.db     (Docker)
+   CORS_ORIGINS=https://tu-app.vercel.app
+
+Frontend (docker-compose):
+   NEXT_PUBLIC_BACKEND_URL=/api-backend   (Docker, proxy interno)
+   BACKEND_URL=http://backend:4000
+
+================================================================================
+PROBLEMAS COMUNES
+================================================================================
+
+- "Cannot connect to Ollama": verificar que ollama serve corre en el host
+- Backend no responde: docker compose logs backend
+- CORS bloqueado desde Vercel: agregar dominio en CORS_ORIGINS
+- Túnel no carga: verificar que docker compose up está activo en puerto 3000
+
+Última actualización: 2026-07-06

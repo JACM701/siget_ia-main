@@ -1,0 +1,74 @@
+# SIGET Peritos — Orquestación Semana 6
+# Levantar todo: docker compose up --build -d
+# Requisito previo: Ollama corriendo en el host (ollama serve) con modelo qwen2.5:1.5b
+
+services:
+  # Base vectorial ChromaDB — persistencia en volumen chromadb_data
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: siget-chromadb
+    ports:
+      - '8000:8000'
+    volumes:
+      - chromadb_data:/chroma/data
+    networks:
+      - siget-network
+
+  # Backend Node.js — API del agente, SQLite de observabilidad, conexión a Ollama en el host
+  backend:
+    build:
+      context: ./backend-node
+      dockerfile: Dockerfile
+    container_name: siget-backend
+    ports:
+      - '4000:4000'
+    environment:
+      - SERVER_PORT=4000
+      # host.docker.internal permite al contenedor llamar a Ollama nativo en Windows/Mac
+      - OLLAMA_HOST=host.docker.internal
+      - OLLAMA_PORT=11434
+      - OLLAMA_MODEL=qwen2.5:1.5b
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      # SQLite persistente (observabilidad semana 5) — no se pierde al reiniciar
+      - DATABASE_PATH=/app/data/siget.db
+      # Orígenes permitidos para CORS (separados por coma). Vacío = permitir todos.
+      # Ejemplo Vercel: CORS_ORIGINS=https://siget.vercel.app
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - backend_data:/app/data
+    depends_on:
+      - chromadb
+    networks:
+      - siget-network
+
+  # Frontend Next.js — proxy /api-backend hacia el backend interno
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-/api-backend}
+    container_name: siget-frontend
+    ports:
+      - '3000:3000'
+    environment:
+      - BACKEND_URL=http://backend:4000
+      - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-/api-backend}
+      - NEXT_TELEMETRY_DISABLED=1
+    depends_on:
+      - backend
+    networks:
+      - siget-network
+
+networks:
+  siget-network:
+    driver: bridge
+
+volumes:
+  chromadb_data:
+    driver: local
+  backend_data:
+    driver: local

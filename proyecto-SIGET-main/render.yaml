@@ -1,0 +1,32 @@
+services:
+  # 1. Express Backend
+  - type: web
+    name: siget-backend
+    env: node
+    plan: free
+    rootDir: backend-node
+    buildCommand: npm install
+    startCommand: node app.js
+    envVars:
+      - key: SERVER_PORT
+        value: 10000
+      - key: DATABASE_PATH
+        value: ./siget.db
+      - key: CORS_ORIGINS
+        value: "*"
+      # - key: GEMINI_API_KEY
+      #   value: tu-gemini-api-key-aqui
+
+  # 2. Next.js Frontend
+  - type: web
+    name: siget-frontend
+    env: node
+    plan: free
+    rootDir: .
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_BACKEND_URL
+        value: /api-backend
+      - key: BACKEND_URL
+        value: http://siget-backend:10000
