@@ -30,11 +30,28 @@ services:
       - OLLAMA_MODEL=qwen2.5:1.5b
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
-      # SQLite persistente (observabilidad semana 5) — no se pierde al reiniciar
+      # SQLite persistente — no se pierde al reiniciar
       - DATABASE_PATH=/app/data/siget.db
-      # Orígenes permitidos para CORS (separados por coma). Vacío = permitir todos.
-      # Ejemplo Vercel: CORS_ORIGINS=https://siget.vercel.app
+      # CORS: vacío = permitir todos. En producción definir orígenes.
       - CORS_ORIGINS=${CORS_ORIGINS:-}
+      # Seguridad JWT
+      - JWT_SECRET=${JWT_SECRET:-c845d16072269aac89dd0f3b47cfea347d80bc2f032579bcfd0d972d1a8ca60d}
+      # ── Credenciales del oficial (único usuario) ──────────────────────────
+      - AUTH_BADGE=${AUTH_BADGE:-PT-4522}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-angel.sanchez.2026}
+      - OFFICER_NAME=${OFFICER_NAME:-Ángel Sánchez Castillo}
+      - OFFICER_RANK=${OFFICER_RANK:-Perito de Tránsito II}
+      - OFFICER_UNIT=${OFFICER_UNIT:-Unidad de Investigación Vial}
+      - OFFICER_EMAIL=${OFFICER_EMAIL:-angel.sanchez@ssp.yucatan.gob.mx}
+      - OFFICER_PHONE=${OFFICER_PHONE:-999-123-4567}
+      - OFFICER_SHIFT=${OFFICER_SHIFT:-Matutino}
+      - OFFICER_ZONE=${OFFICER_ZONE:-Zona Norte - Mérida Centro}
+      - OFFICER_JOIN_DATE=${OFFICER_JOIN_DATE:-2019-03-15}
+      - OFFICER_COMPLETED_INCIDENTS=${OFFICER_COMPLETED_INCIDENTS:-247}
+      - OFFICER_CERTIFICATIONS=${OFFICER_CERTIFICATIONS:-Peritaje Vial,Análisis de Accidentes de Tránsito,Cadena de Custodia Digital}
+      # ── IA opcional ───────────────────────────────────────────────────────
+      # - GEMINI_API_KEY=
+      # - TURNSTILE_SECRET_KEY=
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -43,6 +60,13 @@ services:
       - chromadb
     networks:
       - siget-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 
   # Frontend Next.js — proxy /api-backend hacia el backend interno
   frontend:
@@ -59,9 +83,11 @@ services:
       - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-/api-backend}
       - NEXT_TELEMETRY_DISABLED=1
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - siget-network
+
 
 networks:
   siget-network:

@@ -2,13 +2,14 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const config = require('./config');
+const authRoutes = require('./routes/auth');
 const dictamenRoutes = require('./routes/dictamen');
 const peritosRoutes = require('./routes/peritos');
 
 const app = express();
 
-// Necesario para obtener IP real cuando el tráfico entra por túnel (Ngrok/Cloudflare)
-app.set('trust proxy', true);
+// En Docker/proxy inverso: 1 salto de proxy. Evita el ERR_ERL_PERMISSIVE_TRUST_PROXY del rate-limiter.
+app.set('trust proxy', 1);
 
 const corsOptions = config.cors?.origins?.length
   ? {
@@ -24,6 +25,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', servicio: 'SIGET Peritos - Node.js Backend' });
 });
 
+app.use('/api/auth', authRoutes);
 app.use('/api/dictamen', dictamenRoutes);
 app.use('/api/peritos', peritosRoutes);
 
