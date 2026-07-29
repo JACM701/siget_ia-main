@@ -75,6 +75,7 @@ services:
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-/api-backend}
+        - BACKEND_URL=http://backend:4000
     container_name: siget-frontend
     ports:
       - '3000:3000'

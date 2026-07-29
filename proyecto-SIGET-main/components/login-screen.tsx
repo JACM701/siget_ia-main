@@ -32,7 +32,7 @@ export interface OfficerData {
 }
 
 // URL base del backend desde variables de entorno de Next.js
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000"
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "/api-backend"
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false)

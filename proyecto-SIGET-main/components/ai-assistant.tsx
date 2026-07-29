@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "/api-backend"
 
 async function fetchBackend(path: string, body: any) {
   const response = await fetch(`${BACKEND_URL}${path}`, {

@@ -38,6 +38,12 @@ async function validateCaptcha(token) {
 // POST /api/auth/login
 // Body: { badge: string, password: string, captchaToken: string }
 // ─────────────────────────────────────────────────────────────
+router.get('/login', (req, res) => {
+  return res.status(405).json({
+    error: 'Use POST /api/auth/login to authenticate.'
+  });
+});
+
 router.post('/login', async (req, res) => {
   const { badge, password, captchaToken } = req.body;
 
