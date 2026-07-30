@@ -34,11 +34,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "/api-backend"
 
-async function fetchBackend(path: string, body: any) {
+interface AIAssistantProps {
+  token: string | null
+}
+
+async function fetchBackend(path: string, body: any, headers: HeadersInit = {}) {
   const response = await fetch(`${BACKEND_URL}${path}`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...headers
     },
     body: JSON.stringify(body)
   })
@@ -51,7 +56,7 @@ async function fetchBackend(path: string, body: any) {
   return response.json()
 }
 
-export function AIAssistant() {
+export function AIAssistant({ token }: AIAssistantProps) {
   const [activeTab, setActiveTab] = useState("legal")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -96,6 +101,9 @@ export function AIAssistant() {
   const [recordingField, setRecordingField] = useState<string | null>(null)
   const recognitionRef = useRef<any>(null)
   const activeSpeechFieldRef = useRef<string | null>(null)
+  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+  const conversationIdRef = useRef<string>("")
+  const liveChatStartedRef = useRef(false)
 
   // Estados para el Generador de Informe Guiado
   const [informeSubTab, setInformeSubTab] = useState<'preguntas' | 'formulario' | 'historial'>('preguntas')
@@ -128,6 +136,7 @@ export function AIAssistant() {
       existingId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36)
       localStorage.setItem("siget_chat_session_id", existingId)
     }
+    conversationIdRef.current = existingId
     setConversationId(existingId)
     loadHistory(existingId)
     handleListarInformes()
@@ -135,10 +144,12 @@ export function AIAssistant() {
 
   async function loadHistory(sessId: string) {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/peritos/asistente-legal/historial/${sessId}`)
+      const response = await fetch(`${BACKEND_URL}/api/peritos/asistente-legal/historial/${sessId}`, {
+        headers: authHeaders
+      })
       if (response.ok) {
         const data = await response.json()
-        if (data.history) {
+        if (data.history && !liveChatStartedRef.current && conversationIdRef.current === sessId) {
           setChatHistory(data.history)
         }
       }
@@ -148,8 +159,10 @@ export function AIAssistant() {
   }
 
   function handleResetChat() {
+    liveChatStartedRef.current = false
     const newId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36)
     localStorage.setItem("siget_chat_session_id", newId)
+    conversationIdRef.current = newId
     setConversationId(newId)
     setChatHistory([])
     setLegalAnswer("")
@@ -207,6 +220,7 @@ export function AIAssistant() {
   async function uploadFiles(path: string, formData: FormData) {
     const response = await fetch(`${BACKEND_URL}${path}`, {
       method: 'POST',
+      headers: authHeaders,
       body: formData
     })
 
@@ -242,6 +256,7 @@ export function AIAssistant() {
     setLoading(true)
     setAgentStatus("inferring")
     setAgentStatusMessage("Conectando...")
+    liveChatStartedRef.current = true
 
     const questionToSend = legalQuestion.trim()
     if (!questionToSend) return
@@ -254,7 +269,8 @@ export function AIAssistant() {
       const response = await fetch(`${BACKEND_URL}/api/peritos/asistente-legal`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...authHeaders
         },
         body: JSON.stringify({
           pregunta: questionToSend,
@@ -309,6 +325,7 @@ export function AIAssistant() {
                   setMetrics(data.metrics)
                 }
                 if (data.conversation_id) {
+                  conversationIdRef.current = data.conversation_id
                   setConversationId(data.conversation_id)
                   localStorage.setItem("siget_chat_session_id", data.conversation_id)
                 }
@@ -422,7 +439,7 @@ export function AIAssistant() {
       const data = await fetchBackend("/api/dictamen/inconsistencias", {
         conductores,
         vehiculos
-      })
+      }, authHeaders)
       setInconsistenciasResult(JSON.stringify(data, null, 2))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado")
@@ -436,7 +453,10 @@ export function AIAssistant() {
     setSimilaresResult([])
     setLoading(true)
     try {
-      const data = await fetch(`${BACKEND_URL}/api/dictamen/similares?lugar=${encodeURIComponent(similaresLugar)}&tipo=${encodeURIComponent(similaresTipo)}`)
+      const data = await fetch(`${BACKEND_URL}/api/dictamen/similares?lugar=${encodeURIComponent(similaresLugar)}&tipo=${encodeURIComponent(similaresTipo)}`, {
+        headers: authHeaders
+      })
+      
       if (!data.ok) {
         const text = await data.text()
         throw new Error(text || "Error al buscar similares")
@@ -458,7 +478,7 @@ export function AIAssistant() {
       const data = await fetchBackend("/api/dictamen/buscar", {
         consulta: consultaSearch,
         limite: 5
-      })
+      }, authHeaders)
       setSearchResult(data.resultados || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado")
@@ -513,7 +533,8 @@ Descripción detallada de los hechos: ${informeAnswers.descripcion_hechos}
       const response = await fetch(`${BACKEND_URL}/api/dictamen/generar-informe`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...authHeaders
         },
         body: JSON.stringify({ notas: notesText })
       });
@@ -543,7 +564,8 @@ Descripción detallada de los hechos: ${informeAnswers.descripcion_hechos}
       const response = await fetch(`${BACKEND_URL}/api/dictamen/guardar-informe`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...authHeaders
         },
         body: JSON.stringify({ informe: informeGenerado })
       });

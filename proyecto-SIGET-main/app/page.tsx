@@ -18,11 +18,13 @@ export default function SIGETDashboard() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentOfficer, setCurrentOfficer] = useState<OfficerData | null>(null)
+  const [authToken, setAuthToken] = useState<string | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [profileInitialTab, setProfileInitialTab] = useState<'info' | 'stats' | 'activity' | 'settings'>('info')
 
-  const handleLogin = (officer: OfficerData) => {
+  const handleLogin = (officer: OfficerData, token: string) => {
     setCurrentOfficer(officer)
+    setAuthToken(token)
     setIsAuthenticated(true)
   }
 
@@ -34,6 +36,7 @@ export default function SIGETDashboard() {
   const handleLogout = () => {
     setIsAuthenticated(false)
     setCurrentOfficer(null)
+    setAuthToken(null)
     setShowProfile(false)
     setActiveView("dashboard")
   }
@@ -49,7 +52,7 @@ export default function SIGETDashboard() {
       case "documents":
         return <LegalDocuments />
       case "assistant":
-        return <AIAssistant />
+        return <AIAssistant token={authToken} />
       default:
         return <DashboardOverview />
     }
